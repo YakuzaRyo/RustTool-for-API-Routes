@@ -90,6 +90,17 @@ fn main() -> Result<()> {
                 reset,
             )?;
         }
+
+        Commands::Mount { path } => {
+            let mount_repo = GitRepo::open(&path).context("Failed to open Git repository")?;
+            commands::registry::mount_repo(&mount_repo, &path)?;
+        }
+
+        Commands::Check { path } => {
+            let check_path = path.unwrap_or_else(|| ".".to_string());
+            let check_repo = GitRepo::open(&check_path).context("Failed to open Git repository")?;
+            commands::registry::check_repo(&check_repo, &check_path)?;
+        }
     }
 
     Ok(())

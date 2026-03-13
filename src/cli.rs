@@ -56,6 +56,20 @@ pub enum Commands {
         #[arg(long)]
         reset: bool,
     },
+
+    /// Mount an existing API repository
+    Mount {
+        /// Path to the existing repository
+        #[arg(value_name = "PATH")]
+        path: String,
+    },
+
+    /// Check if an existing repository meets ARM requirements
+    Check {
+        /// Path to the repository to check
+        #[arg(value_name = "PATH")]
+        path: Option<String>,
+    },
 }
 
 /// Registry commands

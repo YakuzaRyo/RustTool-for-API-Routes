@@ -539,6 +539,272 @@ method
     Ok(())
 }
 
+/// Check if a repository meets ARM requirements
+pub fn check_repo(_current_repo: &GitRepo, path: &str) -> Result<()> {
+    println!("{} Checking repository: {}", "→".yellow(), path.cyan());
+    println!();
+
+    // Check if the path exists and is a valid git repository
+    if !GitRepo::is_valid(path) {
+        bail!("No valid Git repository found at: {}", path);
+    }
+
+    // Open the target repository
+    let target_repo = GitRepo::open(path)?;
+
+    let mut issues = Vec::new();
+    let mut passed = Vec::new();
+
+    // Check for required branches
+    let has_master = target_repo.branch_exists("master")?;
+    let has_api = target_repo.branch_exists("api")?;
+    let has_error = target_repo.branch_exists("error")?;
+
+    println!("{}", "1. Required Branches:".bold());
+    if has_master {
+        println!("  {} master branch exists", "✓".green());
+        passed.push("master");
+    } else {
+        println!("  {} master branch missing", "✗".red());
+        issues.push("Missing master branch");
+    }
+    if has_api {
+        println!("  {} api branch exists", "✓".green());
+        passed.push("api");
+    } else {
+        println!("  {} api branch missing", "✗".red());
+        issues.push("Missing api branch");
+    }
+    if has_error {
+        println!("  {} error branch exists", "✓".green());
+        passed.push("error");
+    } else {
+        println!("  {} error branch missing", "✗".red());
+        issues.push("Missing error branch");
+    }
+
+    // Check mapping file
+    println!();
+    println!("{}", "2. Mapping File:".bold());
+    let mapping_path = format!("{}/.arm/mapping.json", path);
+    if std::path::Path::new(&mapping_path).exists() {
+        let content = fs::read_to_string(&mapping_path)?;
+        let mapping: PathMapping =
+            serde_json::from_str(&content).context("Failed to parse mapping.json")?;
+        println!("  {} mapping.json exists", "✓".green());
+        println!("  {} entries: {}", "→".yellow(), mapping.entries.len());
+        passed.push("mapping.json");
+    } else {
+        println!("  {} mapping.json missing", "✗".red());
+        issues.push("Missing .arm/mapping.json");
+    }
+
+    // Check VERSION.md
+    println!();
+    println!("{}", "3. Version File:".bold());
+    let version_path = format!("{}/VERSION.md", path);
+    if std::path::Path::new(&version_path).exists() {
+        println!("  {} VERSION.md exists", "✓".green());
+        passed.push("VERSION.md");
+    } else {
+        println!("  {} VERSION.md missing", "✗".red());
+        issues.push("Missing VERSION.md");
+    }
+
+    // Check version branches
+    println!();
+    println!("{}", "4. API Versions:".bold());
+    let branches = target_repo.list_branches()?;
+    let version_regex = Regex::new(r"^v(\d+)$").unwrap();
+    let versions: Vec<_> = branches
+        .iter()
+        .filter(|(name, _)| version_regex.is_match(name))
+        .collect();
+
+    if versions.is_empty() {
+        println!("  {} No version branches found", "⚠".yellow());
+        issues.push("No version branches (v1, v2, etc.)");
+    } else {
+        println!("  {} Found {} version(s)", "✓".green(), versions.len());
+        for (name, _) in &versions {
+            println!("    - {}", name.cyan());
+        }
+        passed.push("version branches");
+    }
+
+    // Check error code branches
+    println!();
+    println!("{}", "5. Error Codes:".bold());
+    let error_branches: Vec<_> = branches
+        .iter()
+        .filter(|(name, _)| name.starts_with("error-E"))
+        .collect();
+
+    if error_branches.is_empty() {
+        println!("  {} No error code branches found", "⚠".yellow());
+    } else {
+        println!(
+            "  {} Found {} error code(s)",
+            "✓".green(),
+            error_branches.len()
+        );
+        for (name, _) in &error_branches {
+            let code = name.strip_prefix("error-").unwrap_or(name);
+            println!("    - {}", code.cyan());
+        }
+        passed.push("error branches");
+    }
+
+    // Summary
+    println!();
+    println!("{}", "=".repeat(50));
+    println!();
+    println!("{}", "Summary:".bold());
+    println!("  {} Checks passed: {}", "✓".green(), passed.len());
+    println!("  {} Issues found: {}", "✗".red().bold(), issues.len());
+    println!();
+
+    if issues.is_empty() {
+        println!(
+            "{} Repository is a valid ARM repository!",
+            "✓".green().bold()
+        );
+    } else {
+        println!("{}", "Issues:".bold());
+        for issue in &issues {
+            println!("  {} {}", "✗".red(), issue);
+        }
+        println!();
+        println!(
+            "{} Run 'arm -r {} init' to initialize the repository",
+            "→".yellow(),
+            path.cyan()
+        );
+    }
+
+    Ok(())
+}
+
+/// Mount an existing API repository and show its status
+pub fn mount_repo(_current_repo: &GitRepo, path: &str) -> Result<()> {
+    println!("{} Mounting repository from: {}", "→".yellow(), path.cyan());
+
+    // Check if the path exists and is a valid git repository
+    if !GitRepo::is_valid(path) {
+        bail!("No valid Git repository found at: {}", path);
+    }
+
+    // Open the target repository
+    let target_repo = GitRepo::open(path)?;
+
+    // Check for required branches
+    let has_master = target_repo.branch_exists("master")?;
+    let has_api = target_repo.branch_exists("api")?;
+    let has_error = target_repo.branch_exists("error")?;
+
+    println!();
+    println!("{}", "Repository Status:".cyan().bold());
+    println!();
+
+    // Show branch structure
+    println!("{}", "Branches:".bold());
+    if has_master {
+        println!("  {} master", "✓".green());
+    } else {
+        println!("  {} master (missing)", "✗".red());
+    }
+    if has_api {
+        println!("  {} api", "✓".green());
+    } else {
+        println!("  {} api (missing)", "✗".red());
+    }
+    if has_error {
+        println!("  {} error", "✓".green());
+    } else {
+        println!("  {} error (missing)", "✗".red());
+    }
+
+    // Check if it's a valid ARM repository
+    let is_arm_repo = has_master && has_api && has_error;
+
+    println!();
+
+    if is_arm_repo {
+        // Try to load mapping from master branch
+        let current_branch = target_repo.current_branch()?;
+        if current_branch != "master" {
+            target_repo.checkout("master")?;
+        }
+
+        let mapping_path = format!("{}/.arm/mapping.json", path);
+        if std::path::Path::new(&mapping_path).exists() {
+            let content = fs::read_to_string(&mapping_path)?;
+            let mapping: PathMapping = serde_json::from_str(&content)?;
+            println!("{}", "Mapping:".bold());
+            println!("  {} entries: {}", "→".yellow(), mapping.entries.len());
+            println!(
+                "  {} branches tracked: {}",
+                "→".yellow(),
+                mapping.branches.len()
+            );
+        }
+
+        // Show version branches
+        let branches = target_repo.list_branches()?;
+        let version_regex = Regex::new(r"^v(\d+)$").unwrap();
+        let versions: Vec<_> = branches
+            .iter()
+            .filter(|(name, _)| version_regex.is_match(name))
+            .collect();
+
+        if !versions.is_empty() {
+            println!();
+            println!("{}", "API Versions:".bold());
+            for (name, _) in versions {
+                println!("  {} {}", "→".yellow(), name.cyan());
+            }
+        }
+
+        // Show error branches
+        let error_branches: Vec<_> = branches
+            .iter()
+            .filter(|(name, _)| name.starts_with("error-E"))
+            .collect();
+
+        if !error_branches.is_empty() {
+            println!();
+            println!("{}", "Error Codes:".bold());
+            for (name, _) in error_branches {
+                let code = name.strip_prefix("error-").unwrap_or(name);
+                println!("  {} {}", "→".yellow(), code.cyan());
+            }
+        }
+
+        // Restore original branch
+        if current_branch != "master" {
+            target_repo.checkout(&current_branch)?;
+        }
+
+        println!();
+        println!(
+            "{} Successfully mounted ARM repository!",
+            "✓".green().bold()
+        );
+        println!(
+            "  Use 'arm -r {} <command>' to work with this repository",
+            path.cyan()
+        );
+    } else {
+        println!(
+            "{} Not a valid ARM repository. Run 'arm -r {} init' to initialize.",
+            "⚠".yellow().bold(),
+            path.cyan()
+        );
+    }
+
+    Ok(())
+}
+
 pub fn create_error(repo: &GitRepo, code: &str, message: &str, status: u16) -> Result<()> {
     let error_regex = Regex::new(r"^E\d{3,}$").unwrap();
     if !error_regex.is_match(code) {
