@@ -55,10 +55,8 @@ impl Config {
         let config_path = Self::config_path()?;
 
         if config_path.exists() {
-            let content = fs::read_to_string(&config_path)
-                .context("Failed to read config file")?;
-            let config: Config = toml::from_str(&content)
-                .context("Failed to parse config file")?;
+            let content = fs::read_to_string(&config_path).context("Failed to read config file")?;
+            let config: Config = toml::from_str(&content).context("Failed to parse config file")?;
             Ok(config)
         } else {
             Ok(Config::default())
@@ -72,14 +70,11 @@ impl Config {
 
         // Create config directory if it doesn't exist
         if !config_dir.exists() {
-            fs::create_dir_all(&config_dir)
-                .context("Failed to create config directory")?;
+            fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
         }
 
-        let content = toml::to_string_pretty(self)
-            .context("Failed to serialize config")?;
-        fs::write(&config_path, content)
-            .context("Failed to write config file")?;
+        let content = toml::to_string_pretty(self).context("Failed to serialize config")?;
+        fs::write(&config_path, content).context("Failed to write config file")?;
 
         Ok(())
     }
@@ -110,11 +105,25 @@ pub fn interactive_setup() -> Result<Config> {
     use colored::Colorize;
     use dialoguer::{Input, theme::ColorfulTheme};
 
-    println!("{}", "╔═══════════════════════════════════════════════════════════╗".cyan());
-    println!("{}", "║      Welcome to API Routes Manager (ARM) Setup            ║".cyan().bold());
-    println!("{}", "╚═══════════════════════════════════════════════════════════╝".cyan());
+    println!(
+        "{}",
+        "╔═══════════════════════════════════════════════════════════╗".cyan()
+    );
+    println!(
+        "{}",
+        "║      Welcome to API Routes Manager (ARM) Setup            ║"
+            .cyan()
+            .bold()
+    );
+    println!(
+        "{}",
+        "╚═══════════════════════════════════════════════════════════╝".cyan()
+    );
     println!();
-    println!("{}", "This appears to be your first time running ARM.".yellow());
+    println!(
+        "{}",
+        "This appears to be your first time running ARM.".yellow()
+    );
     println!("{}", "Let's set up your configuration.".yellow());
     println!();
 
@@ -169,7 +178,10 @@ pub fn interactive_setup() -> Result<Config> {
     println!("{}", "✓ Configuration saved successfully!".green().bold());
     println!("  Repository path: {}", repo_path.cyan());
     println!();
-    println!("{}", "You can change these settings anytime by running:".dimmed());
+    println!(
+        "{}",
+        "You can change these settings anytime by running:".dimmed()
+    );
     println!("{}", "  arm config --repo <path>".dimmed());
     println!();
 
@@ -195,7 +207,10 @@ pub fn get_or_init_config() -> Result<Config> {
             config.user_language = Some("zh".to_string());
             config.save()?;
 
-            eprintln!("{}", "Running in non-interactive mode. Using default configuration.".yellow());
+            eprintln!(
+                "{}",
+                "Running in non-interactive mode. Using default configuration.".yellow()
+            );
             eprintln!("  Repository path: {}", config.repo_path.cyan());
         }
     }

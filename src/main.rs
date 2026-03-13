@@ -43,25 +43,27 @@ fn main() -> Result<()> {
             commands::registry::init(&repo)?;
         }
 
-        Commands::Registry(registry_cmd) => {
-            match registry_cmd {
-                RegistryCommands::New { description } => {
-                    commands::registry::create_version(&repo, description.as_deref())?;
-                }
-                RegistryCommands::Category { name, description } => {
-                    commands::registry::create_category(&repo, &name, description.as_deref())?;
-                }
-                RegistryCommands::Endpoint { path, description } => {
-                    commands::registry::create_endpoint(&repo, &path, description.as_deref())?;
-                }
-                RegistryCommands::Method { path, description } => {
-                    commands::registry::create_method(&repo, &path, description.as_deref())?;
-                }
-                RegistryCommands::Error { code, message, status } => {
-                    commands::registry::create_error(&repo, &code, &message, status)?;
-                }
+        Commands::Registry(registry_cmd) => match registry_cmd {
+            RegistryCommands::New { description } => {
+                commands::registry::create_version(&repo, description.as_deref())?;
             }
-        }
+            RegistryCommands::Category { name, description } => {
+                commands::registry::create_category(&repo, &name, description.as_deref())?;
+            }
+            RegistryCommands::Endpoint { path, description } => {
+                commands::registry::create_endpoint(&repo, &path, description.as_deref())?;
+            }
+            RegistryCommands::Method { path, description } => {
+                commands::registry::create_method(&repo, &path, description.as_deref())?;
+            }
+            RegistryCommands::Error {
+                code,
+                message,
+                status,
+            } => {
+                commands::registry::create_error(&repo, &code, &message, status)?;
+            }
+        },
 
         Commands::Show(args) => {
             commands::show::execute(&repo, &args.path)?;
@@ -71,7 +73,14 @@ fn main() -> Result<()> {
             commands::update::execute(&repo, &args.path, &args.update)?;
         }
 
-        Commands::Config { repo, name, email, lang, show, reset } => {
+        Commands::Config {
+            repo,
+            name,
+            email,
+            lang,
+            show,
+            reset,
+        } => {
             handle_config_command(
                 repo.clone(),
                 name.clone(),
@@ -123,7 +132,11 @@ fn handle_config_command(
         );
         println!(
             "  First run:       {}",
-            if config.is_first_run() { "Yes".yellow() } else { "No".green() }
+            if config.is_first_run() {
+                "Yes".yellow()
+            } else {
+                "No".green()
+            }
         );
         return Ok(());
     }

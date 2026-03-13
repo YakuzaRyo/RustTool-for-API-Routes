@@ -2,8 +2,8 @@ use anyhow::{Context, Result, bail};
 use colored::Colorize;
 use std::fs;
 
+use crate::commands::registry::{get_latest_version, load_mapping};
 use crate::git::GitRepo;
-use crate::commands::registry::{load_mapping, get_latest_version};
 
 pub fn execute(repo: &GitRepo, path: &str, update: &str) -> Result<()> {
     if path.is_empty() {
@@ -16,7 +16,9 @@ pub fn execute(repo: &GitRepo, path: &str, update: &str) -> Result<()> {
     let latest = get_latest_version(repo)?.context("No API version found")?;
     let mapping = load_mapping(repo)?;
     let full_path = format!("{}/{}", latest, path);
-    let entry = mapping.get_by_path(&full_path).context(format!("'{}' not found", path))?;
+    let entry = mapping
+        .get_by_path(&full_path)
+        .context(format!("'{}' not found", path))?;
     repo.checkout(&entry.branch)?;
     let mut file_content = fs::read_to_string("INFO.md").context("Failed to read INFO.md")?;
     file_content = replace_markdown_section(&file_content, &key, &content)?;
@@ -38,7 +40,9 @@ fn parse_update(update: &str) -> Result<(String, String)> {
 }
 
 fn update_error(repo: &GitRepo, path: &str, key: &str, content: &str) -> Result<()> {
-    let code = path.strip_prefix("error/").context("Invalid error path format")?;
+    let code = path
+        .strip_prefix("error/")
+        .context("Invalid error path format")?;
     let branch_name = format!("error-{}", code);
     if !repo.branch_exists(&branch_name)? {
         bail!("Error code '{}' not found", code);
@@ -66,7 +70,9 @@ fn replace_markdown_section(content: &str, key: &str, new_value: &str) -> Result
         let mut chars = key.chars();
         match chars.next() {
             None => String::new(),
-            Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+            Some(first) => {
+                first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
+            }
         }
     };
 
@@ -114,10 +120,15 @@ fn replace_markdown_section(content: &str, key: &str, new_value: &str) -> Result
     }
 
     // Try field format: "**Field**: value" (for legacy or appended fields)
-    let field_pattern = format!(r"(?im)^(\*\*{}\*\*):\s*(.+)$", regex::escape(&capitalized_key));
+    let field_pattern = format!(
+        r"(?im)^(\*\*{}\*\*):\s*(.+)$",
+        regex::escape(&capitalized_key)
+    );
     if let Ok(re) = regex::Regex::new(&field_pattern) {
         if re.is_match(&normalized) {
-            return Ok(re.replace_all(&normalized, format!("$1: {}", new_value)).to_string());
+            return Ok(re
+                .replace_all(&normalized, format!("$1: {}", new_value))
+                .to_string());
         }
     }
 

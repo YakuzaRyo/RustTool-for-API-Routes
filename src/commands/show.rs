@@ -2,8 +2,8 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
+use crate::commands::registry::{get_latest_version, load_mapping};
 use crate::git::GitRepo;
-use crate::commands::registry::{load_mapping, get_latest_version};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EndpointInfo {
@@ -60,10 +60,13 @@ pub fn execute(repo: &GitRepo, path: &str) -> Result<()> {
     if path.starts_with("error/") {
         return show_error(repo, path);
     }
-    let latest = get_latest_version(repo)?.context("No API version found. Create one with 'arm registry new'")?;
+    let latest = get_latest_version(repo)?
+        .context("No API version found. Create one with 'arm registry new'")?;
     let mapping = load_mapping(repo)?;
     let full_path = format!("{}/{}", latest, path);
-    let entry = mapping.get_by_path(&full_path).context(format!("'{}' not found in version {}", path, latest))?;
+    let entry = mapping
+        .get_by_path(&full_path)
+        .context(format!("'{}' not found in version {}", path, latest))?;
     repo.checkout(&entry.branch)?;
     let info = parse_info_md()?;
     let json = serde_json::to_string_pretty(&info)?;
@@ -75,7 +78,9 @@ pub fn execute(repo: &GitRepo, path: &str) -> Result<()> {
 }
 
 fn show_error(repo: &GitRepo, path: &str) -> Result<()> {
-    let code = path.strip_prefix("error/").context("Invalid error path format")?;
+    let code = path
+        .strip_prefix("error/")
+        .context("Invalid error path format")?;
     let branch_name = format!("error-{}", code);
     if !repo.branch_exists(&branch_name)? {
         bail!("Error code '{}' not found", code);
@@ -109,13 +114,26 @@ fn parse_info_md() -> Result<EndpointInfo> {
     };
     let related_errors = parse_list(&content, "Related Errors");
     let change_history = parse_change_history(&content);
-    Ok(EndpointInfo { method, path, category, status, created, description, request, response, related_errors, change_history })
+    Ok(EndpointInfo {
+        method,
+        path,
+        category,
+        status,
+        created,
+        description,
+        request,
+        response,
+        related_errors,
+        change_history,
+    })
 }
 
 fn parse_error_md() -> Result<ErrorInfo> {
     let content = fs::read_to_string("ERROR.md").context("Failed to read ERROR.md")?;
     let code = extract_field(&content, "Code").unwrap_or_default();
-    let http_status = extract_field(&content, "HTTP Status").and_then(|s| s.parse().ok()).unwrap_or(400);
+    let http_status = extract_field(&content, "HTTP Status")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(400);
     let message = extract_field(&content, "Message").unwrap_or_default();
     let created = extract_field(&content, "Created").unwrap_or_default();
     let description = extract_section(&content, "Description").unwrap_or_default();
@@ -123,7 +141,17 @@ fn parse_error_md() -> Result<ErrorInfo> {
     let solutions = parse_list(&content, "Solutions");
     let related_endpoints = parse_list(&content, "Related Endpoints");
     let change_history = parse_change_history(&content);
-    Ok(ErrorInfo { code, http_status, message, created, description, possible_causes, solutions, related_endpoints, change_history })
+    Ok(ErrorInfo {
+        code,
+        http_status,
+        message,
+        created,
+        description,
+        possible_causes,
+        solutions,
+        related_endpoints,
+        change_history,
+    })
 }
 
 fn extract_field(content: &str, field: &str) -> Option<String> {
@@ -150,7 +178,11 @@ fn extract_field(content: &str, field: &str) -> Option<String> {
 
     // Fallback to old format: "**Field**: value"
     let pattern = format!(r"\*\*{}\*\*:\s*(.+)", regex::escape(field));
-    regex::Regex::new(&pattern).ok()?.captures(&normalized).and_then(|cap| cap.get(1)).map(|m| m.as_str().trim().to_string())
+    regex::Regex::new(&pattern)
+        .ok()?
+        .captures(&normalized)
+        .and_then(|cap| cap.get(1))
+        .map(|m| m.as_str().trim().to_string())
 }
 
 fn extract_section(content: &str, section: &str) -> Option<String> {
@@ -183,7 +215,11 @@ fn extract_section(content: &str, section: &str) -> Option<String> {
 
 fn extract_code_block(content: &str, section: &str) -> Option<String> {
     let section_content = extract_section(content, section)?;
-    regex::Regex::new(r"```(?:json)?\s*\n(.*?)```").ok()?.captures(&section_content).and_then(|cap| cap.get(1)).map(|m| m.as_str().trim().to_string())
+    regex::Regex::new(r"```(?:json)?\s*\n(.*?)```")
+        .ok()?
+        .captures(&section_content)
+        .and_then(|cap| cap.get(1))
+        .map(|m| m.as_str().trim().to_string())
 }
 
 fn parse_params(content: &str, section: &str) -> Vec<ParamInfo> {
@@ -191,9 +227,18 @@ fn parse_params(content: &str, section: &str) -> Vec<ParamInfo> {
     if let Some(section_content) = extract_section(content, section) {
         for line in section_content.lines() {
             if line.starts_with('|') && !line.contains("Parameter") && !line.contains("---") {
-                let cells: Vec<_> = line.split('|').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+                let cells: Vec<_> = line
+                    .split('|')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .collect();
                 if cells.len() >= 4 {
-                    params.push(ParamInfo { name: cells[0].to_string(), param_type: cells[1].to_string(), required: cells[2].to_lowercase() == "yes" || cells[2] == "true", description: cells.get(3).unwrap_or(&"").to_string() });
+                    params.push(ParamInfo {
+                        name: cells[0].to_string(),
+                        param_type: cells[1].to_string(),
+                        required: cells[2].to_lowercase() == "yes" || cells[2] == "true",
+                        description: cells.get(3).unwrap_or(&"").to_string(),
+                    });
                 }
             }
         }
@@ -206,8 +251,14 @@ fn parse_error_codes(content: &str) -> Vec<String> {
     if let Some(section_content) = extract_section(content, "Error Codes") {
         for line in section_content.lines() {
             if line.starts_with('|') && !line.contains("Error Code") && !line.contains("---") {
-                let cells: Vec<_> = line.split('|').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
-                if let Some(code) = cells.first() { codes.push(code.to_string()); }
+                let cells: Vec<_> = line
+                    .split('|')
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if let Some(code) = cells.first() {
+                    codes.push(code.to_string());
+                }
             }
         }
     }
@@ -220,8 +271,14 @@ fn parse_list(content: &str, section: &str) -> Vec<String> {
         for line in section_content.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with("- ") || trimmed.starts_with("1. ") {
-                let item = trimmed.trim_start_matches("- ").trim_start_matches("1. ").trim().to_string();
-                if !item.is_empty() && item != "None" && item != "TBD" { items.push(item); }
+                let item = trimmed
+                    .trim_start_matches("- ")
+                    .trim_start_matches("1. ")
+                    .trim()
+                    .to_string();
+                if !item.is_empty() && item != "None" && item != "TBD" {
+                    items.push(item);
+                }
             }
         }
     }

@@ -22,9 +22,7 @@ impl GitRepo {
     /// Get current branch name
     pub fn current_branch(&self) -> Result<String> {
         let head = self.repo.head()?;
-        let branch = head
-            .shorthand()
-            .context("Failed to get branch name")?;
+        let branch = head.shorthand().context("Failed to get branch name")?;
         Ok(branch.to_string())
     }
 
@@ -52,7 +50,8 @@ impl GitRepo {
         let mut checkout_opts = git2::build::CheckoutBuilder::new();
         checkout_opts.force();
         checkout_opts.remove_untracked(true);
-        self.repo.checkout_tree(&tree.as_object(), Some(&mut checkout_opts))?;
+        self.repo
+            .checkout_tree(&tree.as_object(), Some(&mut checkout_opts))?;
         self.repo.set_head(&format!("refs/heads/{}", branch_name))?;
         Ok(())
     }
@@ -77,7 +76,11 @@ impl GitRepo {
         for branch in self.repo.branches(Some(BranchType::Local))? {
             let (branch, _) = branch?;
             let name = branch.name()?.unwrap_or("unknown").to_string();
-            let oid = branch.get().target().map(|o| o.to_string()).unwrap_or_default();
+            let oid = branch
+                .get()
+                .target()
+                .map(|o| o.to_string())
+                .unwrap_or_default();
             branches.push((name, oid));
         }
         Ok(branches)
@@ -124,9 +127,10 @@ impl GitRepo {
         let mut index = self.repo.index()?;
 
         // Convert paths to glob patterns for add_all
-        let patterns: Vec<String> = paths.iter().map(|p| {
-            format!("{}", p.to_str().unwrap_or("*"))
-        }).collect();
+        let patterns: Vec<String> = paths
+            .iter()
+            .map(|p| format!("{}", p.to_str().unwrap_or("*")))
+            .collect();
 
         // Add files to index using add_all with glob patterns
         let pattern_refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
@@ -156,7 +160,9 @@ impl GitRepo {
         let ancestor_commit = self.repo.revparse_single(ancestor)?.peel_to_commit()?;
         let descendant_commit = self.repo.revparse_single(descendant)?.peel_to_commit()?;
 
-        Ok(self.repo.graph_descendant_of(descendant_commit.id(), ancestor_commit.id())?)
+        Ok(self
+            .repo
+            .graph_descendant_of(descendant_commit.id(), ancestor_commit.id())?)
     }
 
     /// Get the merge base of two branches
@@ -183,7 +189,11 @@ impl GitRepo {
     }
 
     /// List all files in a branch
-    pub fn list_files_in_branch(&self, branch: &str, extension: Option<&str>) -> Result<Vec<String>> {
+    pub fn list_files_in_branch(
+        &self,
+        branch: &str,
+        extension: Option<&str>,
+    ) -> Result<Vec<String>> {
         let branch_ref = self.repo.find_branch(branch, BranchType::Local)?;
         let commit = branch_ref.get().peel_to_commit()?;
         let tree = commit.tree()?;

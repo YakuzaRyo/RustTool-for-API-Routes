@@ -144,13 +144,19 @@ None
     println!("{} Updated master branch with VERSION.md", "✓".green());
     if !repo.branch_exists("api")? {
         repo.checkout_new_branch_from("api", "master")?;
-        fs::write("INFO.md", "# API Root\n\nThis is the root branch for all API versions.\n")?;
+        fs::write(
+            "INFO.md",
+            "# API Root\n\nThis is the root branch for all API versions.\n",
+        )?;
         repo.commit("[INIT] Create api root branch")?;
         println!("{} Created api root branch", "✓".green());
     }
     if !repo.branch_exists("error")? {
         repo.checkout_new_branch_from("error", "master")?;
-        fs::write("INFO.md", "# Error Root\n\nThis is the root branch for all error codes.\n")?;
+        fs::write(
+            "INFO.md",
+            "# Error Root\n\nThis is the root branch for all error codes.\n",
+        )?;
         repo.commit("[INIT] Create error root branch")?;
         println!("{} Created error root branch", "✓".green());
     }
@@ -167,12 +173,25 @@ None
 
 pub fn create_version(repo: &GitRepo, description: Option<&str>) -> Result<()> {
     let latest = get_latest_version(repo)?;
-    let new_version_num = latest.as_ref().map(|v| {
-        Regex::new(r"v(\d+)").unwrap().captures(v).and_then(|c| c[1].parse::<u32>().ok()).unwrap_or(0) + 1
-    }).unwrap_or(1);
+    let new_version_num = latest
+        .as_ref()
+        .map(|v| {
+            Regex::new(r"v(\d+)")
+                .unwrap()
+                .captures(v)
+                .and_then(|c| c[1].parse::<u32>().ok())
+                .unwrap_or(0)
+                + 1
+        })
+        .unwrap_or(1);
     let new_version = format!("v{}", new_version_num);
     let source = latest.unwrap_or_else(|| "api".to_string());
-    println!("{} Creating new version '{}' from '{}'...", "→".yellow(), new_version.cyan(), source.yellow());
+    println!(
+        "{} Creating new version '{}' from '{}'...",
+        "→".yellow(),
+        new_version.cyan(),
+        source.yellow()
+    );
 
     // Load mapping from current branch before creating new branch
     let mut mapping = load_mapping(repo)?;
@@ -180,7 +199,13 @@ pub fn create_version(repo: &GitRepo, description: Option<&str>) -> Result<()> {
     repo.checkout_new_branch_from(&new_version, &source)?;
     let date = Local::now().format("%Y-%m-%d %H:%M:%S");
     let desc = description.unwrap_or("New API version");
-    fs::write("INFO.md", format!("# {}\n\n## Description\n{}\n\n## Created\n{}\n\n## Source Version\n{}\n\n## Categories\n- None yet\n\n## Last Updated\n{}\n", new_version, desc, date, source, date))?;
+    fs::write(
+        "INFO.md",
+        format!(
+            "# {}\n\n## Description\n{}\n\n## Created\n{}\n\n## Source Version\n{}\n\n## Categories\n- None yet\n\n## Last Updated\n{}\n",
+            new_version, desc, date, source, date
+        ),
+    )?;
 
     // Add to mapping and save on the new branch
     mapping.add(&new_version, &new_version, "version", Some("api"));
@@ -190,20 +215,39 @@ pub fn create_version(repo: &GitRepo, description: Option<&str>) -> Result<()> {
     repo.checkout("master")?;
     let version_md = fs::read_to_string("VERSION.md").unwrap_or_default();
     let updated = version_md
-        .replace("## Current Version\nNone", &format!("## Current Version\n{}", new_version))
-        .replace("## Version History", &format!("## Version History\n- {}: {} (from {})\n", new_version, desc, source));
+        .replace(
+            "## Current Version\nNone",
+            &format!("## Current Version\n{}", new_version),
+        )
+        .replace(
+            "## Version History",
+            &format!(
+                "## Version History\n- {}: {} (from {})\n",
+                new_version, desc, source
+            ),
+        );
     fs::write("VERSION.md", updated)?;
     repo.commit(&format!("[VERSION] Record {} in master", new_version))?;
     repo.checkout(&new_version)?;
-    println!("{} Created version branch: {}", "✓".green().bold(), new_version.cyan());
+    println!(
+        "{} Created version branch: {}",
+        "✓".green().bold(),
+        new_version.cyan()
+    );
     Ok(())
 }
 
 pub fn create_category(repo: &GitRepo, name: &str, description: Option<&str>) -> Result<()> {
-    let latest = get_latest_version(repo)?.context("No version found. Create one with 'arm registry new'")?;
+    let latest = get_latest_version(repo)?
+        .context("No version found. Create one with 'arm registry new'")?;
     let branch_code = generate_random_code();
     let branch_name = format!("{}-{}", latest, branch_code);
-    println!("{} Creating category '{}' in {}...", "→".yellow(), name.cyan(), latest.yellow());
+    println!(
+        "{} Creating category '{}' in {}...",
+        "→".yellow(),
+        name.cyan(),
+        latest.yellow()
+    );
 
     // Load mapping before creating new branch
     let mut mapping = load_mapping(repo)?;
@@ -211,7 +255,10 @@ pub fn create_category(repo: &GitRepo, name: &str, description: Option<&str>) ->
     repo.checkout_new_branch_from(&branch_name, &latest)?;
     let date = Local::now().format("%Y-%m-%d %H:%M:%S");
     let desc = description.unwrap_or("New category");
-    let info_content = format!("# {}\n\n## Type\ncategory\n\n## Path\n{}\n\n## Description\n{}\n\n## Version\n{}\n\n## Created\n{}\n\n## Endpoints\n- None yet\n\n## Last Updated\n{}\n", name, name, desc, latest, date, date);
+    let info_content = format!(
+        "# {}\n\n## Type\ncategory\n\n## Path\n{}\n\n## Description\n{}\n\n## Version\n{}\n\n## Created\n{}\n\n## Endpoints\n- None yet\n\n## Last Updated\n{}\n",
+        name, name, desc, latest, date, date
+    );
     fs::write("INFO.md", &info_content)?;
 
     let path = format!("{}/{}", latest, name);
@@ -221,7 +268,10 @@ pub fn create_category(repo: &GitRepo, name: &str, description: Option<&str>) ->
     // Re-write INFO.md after save_mapping (which switches branches)
     fs::write("INFO.md", &info_content)?;
 
-    repo.commit_files(&[Path::new("INFO.md")], &format!("[CATEGORY] Create {}", name))?;
+    repo.commit_files(
+        &[Path::new("INFO.md")],
+        &format!("[CATEGORY] Create {}", name),
+    )?;
     println!("{} Created category: {}", "✓".green().bold(), name.cyan());
 
     // Return to master
@@ -232,11 +282,15 @@ pub fn create_category(repo: &GitRepo, name: &str, description: Option<&str>) ->
 pub fn create_endpoint(repo: &GitRepo, path: &str, description: Option<&str>) -> Result<()> {
     let parts: Vec<&str> = path.split('/').collect();
     if parts.len() < 2 {
-        bail!("Invalid endpoint path '{}'. Must be in format 'category/resource'", path);
+        bail!(
+            "Invalid endpoint path '{}'. Must be in format 'category/resource'",
+            path
+        );
     }
     let category = parts[..parts.len() - 1].join("/");
     let resource = parts.last().unwrap();
-    let latest = get_latest_version(repo)?.context("No version found. Create one with 'arm registry new'")?;
+    let latest = get_latest_version(repo)?
+        .context("No version found. Create one with 'arm registry new'")?;
 
     // Load mapping before any branch operations
     let mut mapping = load_mapping(repo)?;
@@ -249,20 +303,40 @@ pub fn create_endpoint(repo: &GitRepo, path: &str, description: Option<&str>) ->
         .clone();
     let branch_code = generate_random_code();
     let branch_name = format!("{}-{}", latest, branch_code);
-    println!("{} Creating endpoint '{}' in category '{}'...", "→".yellow(), resource.cyan(), category.yellow());
+    println!(
+        "{} Creating endpoint '{}' in category '{}'...",
+        "→".yellow(),
+        resource.cyan(),
+        category.yellow()
+    );
     repo.checkout_new_branch_from(&branch_name, &parent_branch)?;
     let date = Local::now().format("%Y-%m-%d %H:%M:%S");
     let desc = description.unwrap_or("New endpoint");
-    fs::write("INFO.md", format!("# {}\n\n## Type\nendpoint\n\n## Path\n{}\n\n## Resource\n{}\n\n## Category\n{}\n\n## Description\n{}\n\n## Version\n{}\n\n## Created\n{}\n\n## Methods\n- None yet\n\n## Last Updated\n{}\n", resource, path, resource, category, desc, latest, date, date))?;
+    fs::write(
+        "INFO.md",
+        format!(
+            "# {}\n\n## Type\nendpoint\n\n## Path\n{}\n\n## Resource\n{}\n\n## Category\n{}\n\n## Description\n{}\n\n## Version\n{}\n\n## Created\n{}\n\n## Methods\n- None yet\n\n## Last Updated\n{}\n",
+            resource, path, resource, category, desc, latest, date, date
+        ),
+    )?;
 
     let full_path = format!("{}/{}/{}", latest, category, resource);
     mapping.add(&full_path, &branch_name, "endpoint", Some(&parent_branch));
     save_mapping(repo, &mapping)?;
 
     // Re-write INFO.md after save_mapping (which switches branches)
-    fs::write("INFO.md", format!("# {}\n\n## Type\nendpoint\n\n## Path\n{}\n\n## Resource\n{}\n\n## Category\n{}\n\n## Description\n{}\n\n## Version\n{}\n\n## Created\n{}\n\n## Methods\n- None yet\n\n## Last Updated\n{}\n", resource, path, resource, category, desc, latest, date, date))?;
+    fs::write(
+        "INFO.md",
+        format!(
+            "# {}\n\n## Type\nendpoint\n\n## Path\n{}\n\n## Resource\n{}\n\n## Category\n{}\n\n## Description\n{}\n\n## Version\n{}\n\n## Created\n{}\n\n## Methods\n- None yet\n\n## Last Updated\n{}\n",
+            resource, path, resource, category, desc, latest, date, date
+        ),
+    )?;
 
-    repo.commit_files(&[Path::new("INFO.md")], &format!("[ENDPOINT] Create {}", path))?;
+    repo.commit_files(
+        &[Path::new("INFO.md")],
+        &format!("[ENDPOINT] Create {}", path),
+    )?;
     println!("{} Created endpoint: {}", "✓".green().bold(), path.cyan());
 
     // Return to master
@@ -281,7 +355,10 @@ fn create_endpoint_internal(
 ) -> Result<String> {
     let parts: Vec<&str> = path.split('/').collect();
     if parts.len() < 2 {
-        bail!("Invalid endpoint path '{}'. Must be in format 'category/resource'", path);
+        bail!(
+            "Invalid endpoint path '{}'. Must be in format 'category/resource'",
+            path
+        );
     }
     let category = parts[..parts.len() - 1].join("/");
     let resource = parts.last().unwrap();
@@ -323,7 +400,10 @@ fn create_endpoint_internal(
 pub fn create_method(repo: &GitRepo, path: &str, description: Option<&str>) -> Result<()> {
     let parts: Vec<&str> = path.split('/').collect();
     if parts.len() < 3 {
-        bail!("Invalid method path '{}'. Must be in format 'category/resource/METHOD'", path);
+        bail!(
+            "Invalid method path '{}'. Must be in format 'category/resource/METHOD'",
+            path
+        );
     }
     let method = parts.last().unwrap().to_uppercase();
     let valid_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
@@ -336,24 +416,41 @@ pub fn create_method(repo: &GitRepo, path: &str, description: Option<&str>) -> R
     // Load mapping once before any operations
     let mut mapping = load_mapping(repo)?;
 
-    let parent_branch = if let Some(entry) = mapping.get_by_path(&format!("{}/{}", latest, endpoint_path)) {
-        entry.branch.clone()
-    } else {
-        println!("{} Endpoint '{}' not found, creating...", "→".yellow(), endpoint_path);
-        // We need to create endpoint and update our mapping without reloading
-        // Since create_endpoint modifies the repo state, we call it but then
-        // manually add the endpoint entry to our mapping
-        let endpoint_branch = create_endpoint_internal(repo, &latest, &endpoint_path, &mut mapping, Some("Auto-created"))?;
-        endpoint_branch
-    };
+    let parent_branch =
+        if let Some(entry) = mapping.get_by_path(&format!("{}/{}", latest, endpoint_path)) {
+            entry.branch.clone()
+        } else {
+            println!(
+                "{} Endpoint '{}' not found, creating...",
+                "→".yellow(),
+                endpoint_path
+            );
+            // We need to create endpoint and update our mapping without reloading
+            // Since create_endpoint modifies the repo state, we call it but then
+            // manually add the endpoint entry to our mapping
+            let endpoint_branch = create_endpoint_internal(
+                repo,
+                &latest,
+                &endpoint_path,
+                &mut mapping,
+                Some("Auto-created"),
+            )?;
+            endpoint_branch
+        };
     let branch_code = generate_random_code();
     let branch_name = format!("{}-{}", latest, branch_code);
-    println!("{} Creating method '{}' for endpoint '{}'...", "→".yellow(), method.cyan(), endpoint_path.yellow());
+    println!(
+        "{} Creating method '{}' for endpoint '{}'...",
+        "→".yellow(),
+        method.cyan(),
+        endpoint_path.yellow()
+    );
     repo.checkout_new_branch_from(&branch_name, &parent_branch)?;
     let date = Local::now().format("%Y-%m-%d %H:%M:%S");
     let desc = description.unwrap_or("New method");
     let full_path = format!("{}/{}", latest, path);
-    let content = format!(r#"# {method} {path}
+    let content = format!(
+        r#"# {method} {path}
 
 ## Type
 method
@@ -416,7 +513,15 @@ method
 
 ## Change History
 - {date}: Initial creation
-"#, method = method, path = path, version = latest, category = parts[..parts.len()-2].join("/"), resource = parts[parts.len()-2], desc = desc, date = date);
+"#,
+        method = method,
+        path = path,
+        version = latest,
+        category = parts[..parts.len() - 2].join("/"),
+        resource = parts[parts.len() - 2],
+        desc = desc,
+        date = date
+    );
     fs::write("INFO.md", &content)?;
     mapping.add(&full_path, &branch_name, "method", Some(&parent_branch));
     save_mapping(repo, &mapping)?;
@@ -424,7 +529,10 @@ method
     // Re-write INFO.md after save_mapping (which switches branches)
     fs::write("INFO.md", &content)?;
 
-    repo.commit_files(&[Path::new("INFO.md")], &format!("[METHOD] Create {} {}", path, method))?;
+    repo.commit_files(
+        &[Path::new("INFO.md")],
+        &format!("[METHOD] Create {} {}", path, method),
+    )?;
     println!("{} Created method: {}", "✓".green().bold(), path.cyan());
 
     // Return to master
@@ -435,7 +543,10 @@ method
 pub fn create_error(repo: &GitRepo, code: &str, message: &str, status: u16) -> Result<()> {
     let error_regex = Regex::new(r"^E\d{3,}$").unwrap();
     if !error_regex.is_match(code) {
-        bail!("Invalid error code '{}'. Must be in format 'E001', etc.", code);
+        bail!(
+            "Invalid error code '{}'. Must be in format 'E001', etc.",
+            code
+        );
     }
     let branch_name = format!("error-{}", code);
     println!("{} Creating error code '{}'...", "→".yellow(), code.cyan());
@@ -445,7 +556,10 @@ pub fn create_error(repo: &GitRepo, code: &str, message: &str, status: u16) -> R
 
     repo.checkout_new_branch_from(&branch_name, "error")?;
     let date = Local::now().format("%Y-%m-%d %H:%M:%S");
-    fs::write("ERROR.md", format!(r#"# Error Code: {code}
+    fs::write(
+        "ERROR.md",
+        format!(
+            r#"# Error Code: {code}
 
 ## Code
 {code}
@@ -473,13 +587,25 @@ TBD
 
 ## Change History
 - {date}: Initial definition
-"#, code = code, status = status, message = message, date = date))?;
+"#,
+            code = code,
+            status = status,
+            message = message,
+            date = date
+        ),
+    )?;
 
-    mapping.add(&format!("error/{}", code), &branch_name, "error", Some("error"));
+    mapping.add(
+        &format!("error/{}", code),
+        &branch_name,
+        "error",
+        Some("error"),
+    );
     save_mapping(repo, &mapping)?;
 
     // Re-write ERROR.md after save_mapping (which switches branches)
-    let error_content = format!(r#"# Error Code {code}
+    let error_content = format!(
+        r#"# Error Code {code}
 
 ## Type
 error
@@ -510,10 +636,18 @@ TBD
 
 ## Change History
 - {date}: Initial definition
-"#, code = code, status = status, message = message, date = date);
+"#,
+        code = code,
+        status = status,
+        message = message,
+        date = date
+    );
     fs::write("ERROR.md", &error_content)?;
 
-    repo.commit_files(&[Path::new("ERROR.md")], &format!("[ERROR] Create {} - {}", code, message))?;
+    repo.commit_files(
+        &[Path::new("ERROR.md")],
+        &format!("[ERROR] Create {} - {}", code, message),
+    )?;
     println!("{} Created error code: {}", "✓".green().bold(), code.cyan());
 
     // Return to master
