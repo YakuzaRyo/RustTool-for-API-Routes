@@ -182,6 +182,37 @@ arm config -r /path/to/repo   # 设置仓库路径
 arm config --reset            # 重置配置
 ```
 
+### mount
+
+挂载已有仓库并显示状态。
+
+```bash
+arm mount <path>
+
+# 示例
+arm mount /path/to/existing/repo
+arm mount d:/11846/git_test/arm_valid
+```
+
+### check
+
+检查已有仓库是否符合 ARM 要求。
+
+```bash
+arm check [path]
+
+# 示例
+arm check /path/to/repo
+arm check d:/11846/git_test/arm_valid
+```
+
+检查项目：
+- 必需分支（master、api、error）
+- 映射文件（.arm/mapping.json）
+- 版本文件（VERSION.md）
+- API 版本分支（v1、v2...）
+- 错误码分支（error-E001...）
+
 ## 全局选项
 
 | 选项 | 说明 |
