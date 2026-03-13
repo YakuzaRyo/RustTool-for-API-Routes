@@ -124,12 +124,12 @@ fn replace_markdown_section(content: &str, key: &str, new_value: &str) -> Result
         r"(?im)^(\*\*{}\*\*):\s*(.+)$",
         regex::escape(&capitalized_key)
     );
-    if let Ok(re) = regex::Regex::new(&field_pattern) {
-        if re.is_match(&normalized) {
-            return Ok(re
-                .replace_all(&normalized, format!("$1: {}", new_value))
-                .to_string());
-        }
+    if let Ok(re) = regex::Regex::new(&field_pattern)
+        && re.is_match(&normalized)
+    {
+        return Ok(re
+            .replace_all(&normalized, format!("$1: {}", new_value))
+            .to_string());
     }
 
     // If no match, append as new field

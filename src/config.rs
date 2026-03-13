@@ -85,6 +85,7 @@ impl Config {
     }
 
     /// Mark first run as complete
+    #[allow(dead_code)]
     pub fn mark_initialized(&mut self) {
         self.first_run = false;
     }
@@ -101,6 +102,7 @@ impl Config {
 }
 
 /// Interactive configuration setup
+#[allow(dead_code)]
 pub fn interactive_setup() -> Result<Config> {
     use colored::Colorize;
     use dialoguer::{Input, theme::ColorfulTheme};
@@ -189,6 +191,7 @@ pub fn interactive_setup() -> Result<Config> {
 }
 
 /// Get or initialize configuration
+#[allow(dead_code)]
 pub fn get_or_init_config() -> Result<Config> {
     let mut config = Config::load()?;
 

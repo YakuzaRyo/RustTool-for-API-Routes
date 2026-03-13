@@ -27,6 +27,7 @@ impl GitRepo {
     }
 
     /// Create a new branch from the current HEAD
+    #[allow(dead_code)]
     pub fn create_branch(&self, name: &str) -> Result<()> {
         let head = self.repo.head()?;
         let commit = head.peel_to_commit()?;
@@ -51,12 +52,13 @@ impl GitRepo {
         checkout_opts.force();
         checkout_opts.remove_untracked(true);
         self.repo
-            .checkout_tree(&tree.as_object(), Some(&mut checkout_opts))?;
+            .checkout_tree(tree.as_object(), Some(&mut checkout_opts))?;
         self.repo.set_head(&format!("refs/heads/{}", branch_name))?;
         Ok(())
     }
 
     /// Create and checkout a new branch
+    #[allow(dead_code)]
     pub fn checkout_new_branch(&self, name: &str) -> Result<()> {
         self.create_branch(name)?;
         self.checkout(name)?;
@@ -87,6 +89,7 @@ impl GitRepo {
     }
 
     /// Get branches matching a pattern
+    #[allow(dead_code)]
     pub fn list_branches_matching(&self, pattern: &str) -> Result<Vec<String>> {
         let branches = self.list_branches()?;
         let filtered: Vec<String> = branches
@@ -129,7 +132,7 @@ impl GitRepo {
         // Convert paths to glob patterns for add_all
         let patterns: Vec<String> = paths
             .iter()
-            .map(|p| format!("{}", p.to_str().unwrap_or("*")))
+            .map(|p| p.to_str().unwrap_or("*").to_string())
             .collect();
 
         // Add files to index using add_all with glob patterns
@@ -156,6 +159,7 @@ impl GitRepo {
     }
 
     /// Check if an ancestor relationship exists
+    #[allow(dead_code)]
     pub fn is_ancestor(&self, ancestor: &str, descendant: &str) -> Result<bool> {
         let ancestor_commit = self.repo.revparse_single(ancestor)?.peel_to_commit()?;
         let descendant_commit = self.repo.revparse_single(descendant)?.peel_to_commit()?;
@@ -166,6 +170,7 @@ impl GitRepo {
     }
 
     /// Get the merge base of two branches
+    #[allow(dead_code)]
     pub fn merge_base(&self, branch1: &str, branch2: &str) -> Result<git2::Oid> {
         let commit1 = self.repo.revparse_single(branch1)?.peel_to_commit()?;
         let commit2 = self.repo.revparse_single(branch2)?.peel_to_commit()?;
@@ -173,6 +178,7 @@ impl GitRepo {
     }
 
     /// Get file content from a branch
+    #[allow(dead_code)]
     pub fn get_file_from_branch(&self, branch: &str, path: &str) -> Result<Option<String>> {
         let branch_ref = self.repo.find_branch(branch, BranchType::Local)?;
         let commit = branch_ref.get().peel_to_commit()?;
@@ -189,6 +195,7 @@ impl GitRepo {
     }
 
     /// List all files in a branch
+    #[allow(dead_code)]
     pub fn list_files_in_branch(
         &self,
         branch: &str,
@@ -204,6 +211,7 @@ impl GitRepo {
         Ok(files)
     }
 
+    #[allow(dead_code)]
     fn walk_tree(
         &self,
         tree: &Tree,
@@ -251,16 +259,19 @@ impl GitRepo {
     }
 
     /// Get repository path
+    #[allow(dead_code)]
     pub fn path(&self) -> &Path {
         self.repo.path()
     }
 
     /// Get workdir path
+    #[allow(dead_code)]
     pub fn workdir(&self) -> Option<&Path> {
         self.repo.workdir()
     }
 
     /// Delete a branch
+    #[allow(dead_code)]
     pub fn delete_branch(&self, name: &str) -> Result<()> {
         let mut branch = self.repo.find_branch(name, BranchType::Local)?;
         branch.delete()?;
@@ -269,6 +280,7 @@ impl GitRepo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct BranchInfo {
     pub name: String,
     pub branch_type: BranchType,

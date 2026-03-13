@@ -105,8 +105,10 @@ fn handle_config_command(
     reset: bool,
 ) -> Result<()> {
     if reset {
-        let mut config = Config::default();
-        config.first_run = true;
+        let config = Config {
+            first_run: true,
+            ..Default::default()
+        };
         config.save()?;
         println!("{} Configuration reset to defaults.", "✓".green().bold());
         println!("  Run any command to re-run the setup wizard.");

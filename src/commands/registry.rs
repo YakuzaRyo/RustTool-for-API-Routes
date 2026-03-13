@@ -428,14 +428,13 @@ pub fn create_method(repo: &GitRepo, path: &str, description: Option<&str>) -> R
             // We need to create endpoint and update our mapping without reloading
             // Since create_endpoint modifies the repo state, we call it but then
             // manually add the endpoint entry to our mapping
-            let endpoint_branch = create_endpoint_internal(
+            create_endpoint_internal(
                 repo,
                 &latest,
                 &endpoint_path,
                 &mut mapping,
                 Some("Auto-created"),
-            )?;
-            endpoint_branch
+            )?
         };
     let branch_code = generate_random_code();
     let branch_name = format!("{}-{}", latest, branch_code);
