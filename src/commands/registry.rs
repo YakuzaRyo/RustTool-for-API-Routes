@@ -122,38 +122,29 @@ pub fn show_version(repo: &GitRepo) -> Result<()> {
     // Load mapping to show all endpoints
     let mapping = load_mapping(repo)?;
 
-    // Filter entries belonging to the current version
+    // Filter entries belonging to the current version - only methods
     let version_prefix = format!("{}/", latest);
-    let endpoints: Vec<_> = mapping
+    let methods: Vec<_> = mapping
         .entries
         .iter()
-        .filter(|(path, _)| path.starts_with(&version_prefix))
+        .filter(|(path, entry)| {
+            path.starts_with(&version_prefix) && entry.entry_type == "method"
+        })
         .collect();
 
-    if endpoints.is_empty() {
+    if methods.is_empty() {
         println!("{}", "No endpoints found in this version.".yellow());
     } else {
         println!("{} Endpoints:", "→".yellow());
         println!();
 
-        for (path, entry) in &endpoints {
-            let entry_type = entry.entry_type.as_str();
-            match entry_type {
-                "endpoint" => {
-                    // v1/category/resource -> show as path
-                    let display = path.replace(&format!("{}/", latest), "");
-                    println!("  {}", display.yellow());
-                }
-                "method" => {
-                    // v1/category/resource/GET -> show as path/method
-                    let parts: Vec<&str> = path.split('/').collect();
-                    if parts.len() >= 4 {
-                        let method = parts[3].green();
-                        let display = parts[1..parts.len()-1].join("/");
-                        println!("  {}/{}", display.yellow(), method);
-                    }
-                }
-                _ => {}
+        for (path, _) in &methods {
+            // v1/category/resource/GET -> show as category/resource/GET
+            let parts: Vec<&str> = path.split('/').collect();
+            if parts.len() >= 4 {
+                let method = parts[3].green();
+                let display = parts[1..parts.len()-1].join("/");
+                println!("  {}/{}", display.yellow(), method);
             }
         }
     }
