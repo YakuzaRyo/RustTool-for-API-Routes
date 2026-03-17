@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use dirs;
 use chrono::Local;
 use colored::Colorize;
 use once_cell::sync::Lazy;
@@ -10,7 +11,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
 
-use crate::git::GitRepo;
+use crate::git::{self, GitRepo};
 
 /// repos.json file path - program level (arm.exe同级目录)
 const GLOBAL_REPOS_FILE: &str = "repos.json";
@@ -339,6 +340,121 @@ None
 
     println!("\n{}", "Initialization complete!".green().bold());
     println!("  Use 'arm registry new' to create the first API version.");
+    Ok(())
+}
+
+/// Initialize a new repository in ~/.arm/<name>
+pub fn init_with_name(name: &str) -> Result<()> {
+    // Get home directory and create ARM directory path
+    let home = dirs::home_dir().context("Failed to get home directory")?;
+    let arm_dir = home.join(".arm").join(name);
+    let arm_dir_str = arm_dir.to_string_lossy().to_string();
+
+    println!("{}", "Initializing new ARM repository...".cyan().bold());
+    println!("  Path: {}", arm_dir_str.cyan());
+
+    // Check if directory already exists
+    if arm_dir.exists() {
+        // Check if it's already a git repository
+        if GitRepo::is_valid(&arm_dir_str) {
+            println!("  {} Repository already exists at this path", "⚠".yellow());
+            // Still record it in repos.json
+            add_repo(name, &arm_dir_str)?;
+            println!("  {} Recorded repository: {} -> {}", "✓".green(), name.cyan(), arm_dir_str.dimmed());
+            return Ok(());
+        } else {
+            bail!("Directory already exists but is not a git repository: {}", arm_dir_str);
+        }
+    }
+
+    // Create the directory and initialize git
+    fs::create_dir_all(&arm_dir)?;
+    println!("  {} Created directory", "✓".green());
+
+    // Initialize git repository
+    let repo = git::init_repo(&arm_dir_str)?;
+    println!("  {} Initialized git repository", "✓".green());
+
+    // Now initialize the ARM structure (reuse the logic from init function)
+    // We need to work from the new repo
+    init(&repo)?;
+
+    // Update the message to reflect the new location
+    println!("\n{}", "Initialization complete!".green().bold());
+    println!("  Repository created at: {}", arm_dir_str.cyan());
+    println!("  Use 'arm -r {} <command>' to work with this repository", name.cyan());
+
+    Ok(())
+}
+
+/// Scan ~/.arm directory for existing repositories
+pub fn scan() -> Result<()> {
+    // Get home directory and .arm directory path
+    let home = dirs::home_dir().context("Failed to get home directory")?;
+    let arm_base_dir = home.join(".arm");
+
+    println!("{}", "Scanning ~/.arm for existing repositories...".cyan().bold());
+    println!("  Base path: {}", arm_base_dir.to_string_lossy().cyan());
+    println!();
+
+    // Check if .arm directory exists
+    if !arm_base_dir.exists() {
+        println!("  {} ~/.arm directory does not exist", "⚠".yellow());
+        println!("  Create one with 'arm init --name <name>'");
+        return Ok(());
+    }
+
+    // Read all entries in .arm directory
+    let mut count = 0;
+    let mut added = 0;
+
+    for entry in fs::read_dir(&arm_base_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        // Only check directories
+        if !path.is_dir() {
+            continue;
+        }
+
+        let dir_name = path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+
+        // Skip hidden directories
+        if dir_name.starts_with('.') {
+            continue;
+        }
+
+        count += 1;
+        let path_str = path.to_string_lossy().to_string();
+
+        // Check if it's a valid git repository
+        if GitRepo::is_valid(&path_str) {
+            // Try to open it to check if it's at least a valid repo
+            if let Ok(_repo) = GitRepo::open(&path_str) {
+                // Add to repos.json
+                add_repo(dir_name, &path_str)?;
+                added += 1;
+                println!("  {} {} -> {}", "✓".green(), dir_name.cyan(), path_str.dimmed());
+            } else {
+                println!("  {} {} (invalid git repository)", "⚠".yellow(), dir_name.cyan());
+            }
+        } else {
+            println!("  {} {} (not a git repository)", "✗".red(), dir_name.cyan());
+        }
+    }
+
+    println!();
+    println!("{}", "Scan complete:".bold());
+    println!("  Total directories: {}", count);
+    println!("  Repositories added: {}", added);
+
+    if added == 0 {
+        println!("\n  {} No valid ARM repositories found.", "ℹ".blue());
+        println!("  Create one with 'arm init --name <name>'");
+    }
+
     Ok(())
 }
 

@@ -23,7 +23,14 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Initialize the API management structure (master, api, error branches)
-    Init,
+    Init {
+        /// Repository name, create in ~/.arm/<name>
+        #[arg(short, long)]
+        name: Option<String>,
+    },
+
+    /// Scan ~/.arm directory for existing repositories
+    Scan,
 
     /// Registry commands for managing API structure
     #[command(subcommand)]

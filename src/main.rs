@@ -37,6 +37,20 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Handle Init with name separately (creates repo in ~/.arm/<name>)
+    if let Commands::Init { ref name } = args.command {
+        if name.is_some() {
+            commands::registry::init_with_name(name.as_ref().unwrap())?;
+            return Ok(());
+        }
+    }
+
+    // Handle Scan command separately (scans ~/.arm for repos)
+    if let Commands::Scan = args.command {
+        commands::registry::scan()?;
+        return Ok(());
+    }
+
     // Determine repository path with priority:
     // 1. -r parameter (highest priority)
     // 2. local config (.arm/repo.json -> find in global repos.json)
@@ -60,8 +74,13 @@ fn main() -> Result<()> {
         Commands::Config { .. } => {
             // Already handled above
         }
-        Commands::Init => {
+        Commands::Init { name: _ } => {
+            // name is None here (handled above when Some)
             commands::registry::init(&repo)?;
+        }
+
+        Commands::Scan => {
+            // Already handled above
         }
 
         Commands::Registry(registry_cmd) => match registry_cmd {
@@ -236,6 +255,11 @@ fn determine_repo_path(args: &Cli) -> Result<String> {
     if std::env::args().any(|arg| arg == "-r" || arg == "--repo") {
         let repo = args.repo.clone();
         if repo != "." {
+            // First check if it's a known repo name in global repos.json
+            if let Ok(Some(path)) = commands::registry::find_repo_path(&repo) {
+                return Ok(path);
+            }
+            // Otherwise treat as a direct path
             return Ok(repo);
         }
     }

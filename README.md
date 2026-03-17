@@ -68,7 +68,40 @@ arm update error/E001 "description:用户ID不存在"
 初始化 API 管理结构（创建 master、api、error 分支）。
 
 ```bash
-arm init
+arm init                              # 在当前目录初始化
+arm init --name <name>                # 在 ~/.arm/<name> 创建仓库
+```
+
+#### 在 ~/.arm 目录创建仓库
+
+```bash
+# 在 ~/.arm/MyAPI 创建新仓库
+arm init --name MyAPI
+
+# 之后可以通过名称使用
+arm -r MyAPI registry new
+arm -r MyAPI show v1
+```
+
+### scan
+
+扫描 `~/.arm` 目录下的已有仓库，自动添加到 repos.json。
+
+```bash
+arm scan
+```
+
+输出示例：
+```
+Scanning ~/.arm for existing repositories...
+  Base path: C:\Users\11846\.arm
+
+  ✓ MyAPI -> C:\Users\11846\.arm\MyAPI
+  ✓ RealGateWay -> C:\Users\11846\.arm\RealGateWay
+
+Scan complete:
+  Total directories: 2
+  Repositories added: 2
 ```
 
 ### registry
@@ -201,6 +234,22 @@ arm config -r RealGateWay
 1. `-r` 参数（最高优先级）
 2. 本地配置 `.arm/repo.json` → 全局 `repos.json` 查找
 3. 当前目录（默认）
+
+### show-repos
+
+显示已记录的仓库列表（存储在全局 repos.json）。
+
+```bash
+arm show-repos
+```
+
+输出示例：
+```
+Recorded Repositories:
+
+  MyAPI -> C:\Users\11846\.arm\MyAPI
+  RealGateWay -> C:\Users\11846\.arm\RealGateWay
+```
 
 ### mount
 
