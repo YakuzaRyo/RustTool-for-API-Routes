@@ -19,11 +19,8 @@ cargo build --release
 或者将 `arm` 添加到系统 PATH：
 
 ```bash
-# Windows (PowerShell)
-cp target/debug/arm.exe $env:LOCALAPPDATA\Microsoft\WindowsApps\
-
-# 或者添加到 .local/bin
-cp target/debug/arm.exe ~/.local/bin/arm
+# 复制到 .local/bin
+cp target/release/arm.exe ~/.local/bin/arm
 ```
 
 ## 快速开始
@@ -179,6 +176,27 @@ arm show auth/users/POST
 
 # 错误码示例
 arm show error/E001
+```
+
+### show-version
+
+显示当前仓库的所有版本、分类和端点概览。
+
+```bash
+arm show-version
+```
+
+输出示例：
+```
+API Versions:
+  v1
+    - auth (category)
+      - auth/login (endpoint)
+        - POST (method)
+        - GET (method)
+    - users (category)
+      - users/profile (endpoint)
+        - GET (method)
 ```
 
 ### update
