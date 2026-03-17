@@ -89,6 +89,7 @@ dependencies = [
  "dirs",
  "git2",
  "indexmap",
+ "once_cell",
  "rand",
  "rayon",
  "regex",

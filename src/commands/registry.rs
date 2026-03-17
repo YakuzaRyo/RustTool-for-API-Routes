@@ -1,14 +1,20 @@
 use anyhow::{Context, Result, bail};
 use chrono::Local;
 use colored::Colorize;
+use once_cell::sync::Lazy;
 use rand::Rng;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::sync::Mutex;
 
 use crate::git::GitRepo;
+
+/// 全局映射缓存：仓库路径 -> (mapping, 是否有效)
+static MAPPING_CACHE: Lazy<Mutex<Option<(String, PathMapping)>>> =
+    Lazy::new(|| Mutex::new(None));
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MappingEntry {
@@ -19,10 +25,18 @@ pub struct MappingEntry {
     pub created: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PathMapping {
     pub entries: HashMap<String, MappingEntry>,
     pub branches: HashMap<String, String>,
+    #[serde(skip)]
+    pub is_dirty: bool,
+}
+
+impl Default for PathMapping {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PathMapping {
@@ -30,6 +44,7 @@ impl PathMapping {
         Self {
             entries: HashMap::new(),
             branches: HashMap::new(),
+            is_dirty: false,
         }
     }
 
@@ -43,6 +58,7 @@ impl PathMapping {
         };
         self.entries.insert(path.to_string(), entry);
         self.branches.insert(branch.to_string(), path.to_string());
+        self.is_dirty = true;
     }
 
     pub fn get_by_path(&self, path: &str) -> Option<&MappingEntry> {
@@ -52,16 +68,8 @@ impl PathMapping {
 
 const MAPPING_PATH: &str = ".arm/mapping.json";
 
-fn generate_random_code() -> String {
-    let mut rng = rand::thread_rng();
-    let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz0123456789".chars().collect();
-    (0..8)
-        .map(|_| chars[rng.gen_range(0..chars.len())])
-        .collect()
-}
-
-pub fn load_mapping(repo: &GitRepo) -> Result<PathMapping> {
-    // Always load mapping from master branch
+/// 从磁盘加载 mapping（不走缓存）
+fn load_mapping_from_disk(repo: &GitRepo) -> Result<PathMapping> {
     let current_branch = repo.current_branch()?;
     if current_branch != "master" {
         repo.checkout("master")?;
@@ -73,12 +81,43 @@ pub fn load_mapping(repo: &GitRepo) -> Result<PathMapping> {
         PathMapping::new()
     };
 
-    // Switch back to original branch
     if current_branch != "master" {
         repo.checkout(&current_branch)?;
     }
 
     Ok(mapping)
+}
+
+/// 带缓存的 mapping 加载
+pub fn load_mapping(repo: &GitRepo) -> Result<PathMapping> {
+    let repo_path = repo.path().to_string_lossy().to_string();
+
+    // 检查缓存是否有效（同一仓库且未脏）
+    {
+        let cache = MAPPING_CACHE.lock().unwrap();
+        if let Some((ref path, ref mapping)) = *cache {
+            if path == &repo_path && !mapping.is_dirty {
+                return Ok(mapping.clone());
+            }
+        }
+    }
+
+    // 缓存无效，从磁盘加载
+    let mapping = load_mapping_from_disk(repo)?;
+
+    // 更新缓存
+    let mut cache = MAPPING_CACHE.lock().unwrap();
+    *cache = Some((repo_path, mapping.clone()));
+
+    Ok(mapping)
+}
+
+fn generate_random_code() -> String {
+    let mut rng = rand::thread_rng();
+    let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz0123456789".chars().collect();
+    (0..8)
+        .map(|_| chars[rng.gen_range(0..chars.len())])
+        .collect()
 }
 
 fn save_mapping(repo: &GitRepo, mapping: &PathMapping) -> Result<()> {
@@ -99,6 +138,13 @@ fn save_mapping(repo: &GitRepo, mapping: &PathMapping) -> Result<()> {
     if current_branch != "master" {
         repo.checkout(&current_branch)?;
     }
+
+    // 更新缓存
+    let repo_path = repo.path().to_string_lossy().to_string();
+    let mut cache = MAPPING_CACHE.lock().unwrap();
+    let mut mapping_clone = mapping.clone();
+    mapping_clone.is_dirty = false;
+    *cache = Some((repo_path, mapping_clone));
 
     Ok(())
 }
