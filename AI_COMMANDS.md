@@ -51,6 +51,7 @@ arm show error/E001
 | `arm init --name <name>` | 在 ~/.arm/<name> 创建仓库 |
 | `arm scan` | 扫描 ~/.arm 下的所有仓库 |
 | `arm show-repos` | 显示已记录的仓库列表 |
+| `arm show-version` | 显示当前版本和所有端点 |
 | `arm config -r <name>` | 配置使用指定仓库 |
 
 ### 仓库操作
@@ -137,6 +138,9 @@ arm registry error E004 "参数错误" --status 400
 ### 查看与更新
 
 ```bash
+# 查看当前版本和所有端点（仅显示 method）
+arm show-version
+
 # 查看端点详情（JSON 格式）
 arm show <path>
 
@@ -159,6 +163,18 @@ arm update auth/login/POST "description:用户登录接口"
 arm update auth/login/POST "status:deprecated"
 arm update error/E001 "description:用户ID不存在"
 arm update error/E001 "message:用户不存在，请检查ID"
+```
+
+**show-version 输出示例：**
+```
+→ Current Version: v1
+
+Description: v1
+
+→ Endpoints:
+
+  auth/users/GET
+  auth/login/POST
 ```
 
 ### 挂载与检查
