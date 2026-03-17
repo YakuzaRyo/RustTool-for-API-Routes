@@ -103,7 +103,8 @@ impl GitRepo {
     /// Commit files with a message
     pub fn commit(&self, message: &str) -> Result<()> {
         let mut index = self.repo.index()?;
-        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
+        let mut cb = |_: &Path, _: &[u8]| 0;
+        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, Some(&mut cb))?;
         index.write()?;
 
         let tree_id = index.write_tree()?;
@@ -137,7 +138,8 @@ impl GitRepo {
 
         // Add files to index using add_all with glob patterns
         let pattern_refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
-        index.add_all(pattern_refs.iter(), git2::IndexAddOption::DEFAULT, None)?;
+        let mut cb = |_: &Path, _: &[u8]| 0;
+        index.add_all(pattern_refs.iter(), git2::IndexAddOption::DEFAULT, Some(&mut cb))?;
         index.write()?;
 
         let tree_id = index.write_tree()?;

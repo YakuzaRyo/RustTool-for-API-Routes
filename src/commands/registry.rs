@@ -438,6 +438,9 @@ pub fn init_with_name(name: &str) -> Result<()> {
     let repo = git::init_repo(&arm_dir_str)?;
     println!("  {} Initialized git repository", "✓".green());
 
+    // Change to the repository's working directory
+    std::env::set_current_dir(&arm_dir)?;
+
     // Now initialize the ARM structure (reuse the logic from init function)
     // We need to work from the new repo
     init(&repo)?;

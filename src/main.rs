@@ -65,6 +65,9 @@ fn main() -> Result<()> {
         git::init_repo(&repo_path).context("Failed to initialize Git repository")?
     };
 
+    // Change to the repository's working directory
+    std::env::set_current_dir(&repo_path)?;
+
     if args.verbose {
         println!("{} Working in: {}", "→".dimmed(), repo_path.cyan());
     }
