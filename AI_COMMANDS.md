@@ -13,27 +13,24 @@ arm init
 # 方式B: 在 ~/.arm/<name> 创建仓库（推荐）
 arm init --name MyAPI
 
-# 2. 创建第一个 API 版本
-arm -r MyAPI registry new -d "初始版本"
+# 2. 配置项目使用仓库（只需配置一次）
+arm config -r MyAPI
 
-# 3. 创建分类
-arm -r MyAPI registry category auth -d "认证接口"
+# 3. 之后可直接使用命令（无需 -r）
+arm registry new -d "初始版本"
+arm registry category auth -d "认证接口"
+arm registry endpoint auth/users -d "用户管理"
+arm registry method auth/users/POST -d "创建用户"
+arm registry method auth/users/GET -d "获取用户列表"
 
-# 4. 创建端点
-arm -r MyAPI registry endpoint auth/users -d "用户管理"
+# 4. 查看端点（无需 -r）
+arm show auth/users/POST
 
-# 5. 创建方法
-arm -r MyAPI registry method auth/users/POST -d "创建用户"
-arm -r MyAPI registry method auth/users/GET -d "获取用户列表"
+# 5. 创建错误码
+arm registry error E001 "用户不存在" --status 404
 
-# 6. 查看端点
-arm -r MyAPI show auth/users/POST
-
-# 7. 创建错误码
-arm -r MyAPI registry error E001 "用户不存在" --status 404
-
-# 8. 查看错误码
-arm -r MyAPI show error/E001
+# 6. 查看错误码
+arm show error/E001
 ```
 
 ## 核心概念
@@ -42,6 +39,7 @@ arm -r MyAPI show error/E001
 - **分支结构**: master → api → v1 → v1-xxxxxx
 - **路径格式**: `{version}/{category}/{resource}/{method}`
 - **错误码格式**: `error/{code}` (如 `error/E001`)
+- **自动解析**: 配置后无需 `-r` 参数，直接使用命令
 
 ## 命令速查表
 
@@ -58,23 +56,26 @@ arm -r MyAPI show error/E001
 ### 仓库操作
 
 ```bash
-# 使用指定仓库（通过名称）
-arm -r MyAPI <command>
-
-# 使用指定仓库（通过路径）
-arm -r "C:\Users\11846\.arm\MyAPI" <command>
-
-# 在项目目录配置默认仓库
+# 方式1: 在项目目录配置默认仓库（推荐）
 cd myproject
-arm config -r MyAPI  # 之后可直接用 arm <command>
+arm config -r MyAPI  # 保存到 .arm/repo.json
+
+# 方式2: 直接使用 -r 参数
+arm -r MyAPI <command>
+arm -r "C:\Users\12846\.arm\MyAPI" <command>
+
+# 配置后可直接使用命令（无需 -r）
+arm registry new
+arm show v1
+arm registry category auth
 ```
 
 ### 版本管理
 
 ```bash
 # 创建新版本（自动从最新版本递增）
-arm -r MyAPI registry new
-arm -r MyAPI registry new -d "版本描述"
+arm registry new
+arm registry new -d "版本描述"
 
 # 列出所有版本分支
 cd ~/.arm/MyAPI && git branch -a | grep "^  v"
@@ -84,80 +85,80 @@ cd ~/.arm/MyAPI && git branch -a | grep "^  v"
 
 ```bash
 # 创建分类
-arm -r MyAPI registry category <name> -d "描述"
+arm registry category <name> -d "描述"
 
 # 示例
-arm -r MyAPI registry category auth -d "认证接口"
-arm -r MyAPI registry category users -d "用户接口"
-arm -r MyAPI registry category payment -d "支付接口"
+arm registry category auth -d "认证接口"
+arm registry category users -d "用户接口"
+arm registry category payment -d "支付接口"
 ```
 
 ### 端点管理
 
 ```bash
 # 创建端点
-arm -r MyAPI registry endpoint <category>/<resource> -d "描述"
+arm registry endpoint <category>/<resource> -d "描述"
 
 # 示例
-arm -r MyAPI registry endpoint auth/login -d "用户登录"
-arm -r MyAPI registry endpoint users/profile -d "用户资料"
+arm registry endpoint auth/login -d "用户登录"
+arm registry endpoint users/profile -d "用户资料"
 ```
 
 ### 方法管理
 
 ```bash
 # 创建方法（自动创建端点）
-arm -r MyAPI registry method <category>/<resource>/<METHOD> -d "描述"
+arm registry method <category>/<resource>/<METHOD> -d "描述"
 
 # METHOD 支持: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
 
 # 示例
-arm -r MyAPI registry method auth/login/POST -d "用户登录"
-arm -r MyAPI registry method users/profile/GET -d "获取用户资料"
-arm -r MyAPI registry method users/profile/PUT -d "更新用户资料"
-arm -r MyAPI registry method users/profile/DELETE -d "删除用户"
+arm registry method auth/login/POST -d "用户登录"
+arm registry method users/profile/GET -d "获取用户资料"
+arm registry method users/profile/PUT -d "更新用户资料"
+arm registry method users/profile/DELETE -d "删除用户"
 ```
 
 ### 错误码管理
 
 ```bash
 # 创建错误码
-arm -r MyAPI registry error <CODE> <MESSAGE> --status <HTTP_STATUS>
+arm registry error <CODE> <MESSAGE> --status <HTTP_STATUS>
 
 # CODE 格式: E001, E002, ... (必须 E 开头 + 3位数字)
 
 # 示例
-arm -r MyAPI registry error E001 "用户不存在" --status 404
-arm -r MyAPI registry error E002 "权限不足" --status 403
-arm -r MyAPI registry error E003 "服务器错误" --status 500
-arm -r MyAPI registry error E004 "参数错误" --status 400
+arm registry error E001 "用户不存在" --status 404
+arm registry error E002 "权限不足" --status 403
+arm registry error E003 "服务器错误" --status 500
+arm registry error E004 "参数错误" --status 400
 ```
 
 ### 查看与更新
 
 ```bash
 # 查看端点详情（JSON 格式）
-arm -r MyAPI show <path>
+arm show <path>
 
 # 示例
-arm -r MyAPI show auth/login/POST
-arm -r MyAPI show users/profile/GET
+arm show auth/login/POST
+arm show users/profile/GET
 
 # 查看错误码详情
-arm -r MyAPI show error/E001
+arm show error/E001
 
 # 更新信息
-arm -r MyAPI update <path> "key:value"
+arm update <path> "key:value"
 
 # 可用 key:
 # - description: 描述
 # - status: 状态 (active/deprecated)
 
 # 示例
-arm -r MyAPI update auth/login/POST "description:用户登录接口"
-arm -r MyAPI update auth/login/POST "status:deprecated"
-arm -r MyAPI update error/E001 "description:用户ID不存在"
-arm -r MyAPI update error/E001 "message:用户不存在，请检查ID"
+arm update auth/login/POST "description:用户登录接口"
+arm update auth/login/POST "status:deprecated"
+arm update error/E001 "description:用户ID不存在"
+arm update error/E001 "message:用户不存在，请检查ID"
 ```
 
 ### 挂载与检查
@@ -208,8 +209,8 @@ arm check /path/to/repo
 #   ]
 # }
 
-# 使用仓库名称时自动查找路径
-arm -r MyAPI ...  # 自动解析到 C:\Users\11846\.arm\MyAPI
+# 配置后直接使用命令，无需 -r
+# 系统自动从 repos.json 查找仓库路径
 ```
 
 ## 常见工作流
@@ -217,31 +218,34 @@ arm -r MyAPI ...  # 自动解析到 C:\Users\11846\.arm\MyAPI
 ### AI 辅助 API 文档管理
 
 ```bash
-# 1. 创建/选择仓库
+# 1. 创建仓库
 arm init --name MyAPI
 
-# 2. 创建版本
-arm -r MyAPI registry new -d "V1 API"
+# 2. 配置默认仓库（在项目目录）
+arm config -r MyAPI
 
-# 3. AI 可以批量创建分类
-arm -r MyAPI registry category auth -d "认证相关"
-arm -r MyAPI registry category users -d "用户管理"
-arm -r MyAPI registry category products -d "产品管理"
-arm -r MyAPI registry category orders -d "订单管理"
+# 3. 创建版本
+arm registry new -d "V1 API"
 
-# 4. AI 创建端点和方法
-arm -r MyAPI registry method auth/login/POST -d "用户登录"
-arm -r MyAPI registry method users/list/GET -d "获取用户列表"
-arm -r MyAPI registry method users/create/POST -d "创建用户"
+# 4. AI 可以批量创建分类
+arm registry category auth -d "认证相关"
+arm registry category users -d "用户管理"
+arm registry category products -d "产品管理"
+arm registry category orders -d "订单管理"
 
-# 5. AI 创建错误码
-arm -r MyAPI registry error E001 "请求参数错误" --status 400
-arm -r MyAPI registry error E002 "未授权" --status 401
-arm -r MyAPI registry error E003 "资源不存在" --status 404
+# 5. AI 创建端点和方法
+arm registry method auth/login/POST -d "用户登录"
+arm registry method users/list/GET -d "获取用户列表"
+arm registry method users/create/POST -d "创建用户"
 
-# 6. 查看和更新
-arm -r MyAPI show auth/login/POST
-arm -r MyAPI update auth/login/POST "description:处理用户登录请求"
+# 6. AI 创建错误码
+arm registry error E001 "请求参数错误" --status 400
+arm registry error E002 "未授权" --status 401
+arm registry error E003 "资源不存在" --status 404
+
+# 7. 查看和更新
+arm show auth/login/POST
+arm update auth/login/POST "description:处理用户登录请求"
 ```
 
 ### 项目集成
@@ -250,12 +254,12 @@ arm -r MyAPI update auth/login/POST "description:处理用户登录请求"
 # 在项目目录集成 ARM
 cd my-api-project
 
-# 方式1: 直接使用 -r 参数
-arm -r MyAPI show auth/login/POST
-
-# 方式2: 配置默认仓库
+# 配置默认仓库（推荐）
 arm config -r MyAPI
-arm show auth/login/POST  # 无需 -r 参数
+
+# 之后直接使用命令
+arm show auth/login/POST
+arm registry new
 ```
 
 ## Git 分支结构
