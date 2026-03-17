@@ -70,6 +70,9 @@ pub enum Commands {
         #[arg(value_name = "PATH")]
         path: Option<String>,
     },
+
+    /// Show list of recorded repositories
+    ShowRepos,
 }
 
 /// Registry commands

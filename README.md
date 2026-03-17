@@ -178,9 +178,29 @@ arm config --show              # 显示配置
 arm config -n "Your Name"     # 设置用户名
 arm config -e "your@email.com" # 设置邮箱
 arm config -l zh              # 设置语言 (zh/en)
-arm config -r /path/to/repo   # 设置仓库路径
+arm config -r <仓库名或路径>  # 设置仓库（支持仓库名或路径）
 arm config --reset            # 重置配置
 ```
+
+#### 本地仓库配置
+
+可以在项目目录配置使用指定的 ARM 仓库，而不影响项目本身的 Git 仓库：
+
+```bash
+# 在项目目录 P1 中配置使用 ARM 仓库 RealGateWay
+cd P1
+arm config -r RealGateWay
+
+# 这会：
+# 1. 在 P1 的 .arm/repo.json 保存 {"repo_name": "RealGateWay"}
+# 2. 在全局 repos.json 中查找 RealGateWay 对应的路径
+# 3. 之后在 P1 运行 arm show 时自动使用该 ARM 仓库
+```
+
+工作目录优先级：
+1. `-r` 参数（最高优先级）
+2. 本地配置 `.arm/repo.json` → 全局 `repos.json` 查找
+3. 当前目录（默认）
 
 ### mount
 

@@ -12,6 +12,117 @@ use std::sync::Mutex;
 
 use crate::git::GitRepo;
 
+/// repos.json file path - program level (arm.exe同级目录)
+const GLOBAL_REPOS_FILE: &str = "repos.json";
+/// Local repo.json file path - project level (.arm/repo.json)
+const LOCAL_REPO_FILE: &str = ".arm/repo.json";
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct RepoList {
+    pub repos: Vec<RepoEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RepoEntry {
+    pub name: String,
+    pub path: String,
+}
+
+/// Get the global repos.json file path (same directory as the executable)
+fn get_global_repos_path() -> std::path::PathBuf {
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            return exe_dir.join(GLOBAL_REPOS_FILE);
+        }
+    }
+    std::path::PathBuf::from(GLOBAL_REPOS_FILE)
+}
+
+/// Load repos list from global directory
+fn load_repos() -> Result<RepoList> {
+    let global_path = get_global_repos_path();
+    if let Ok(content) = fs::read_to_string(&global_path) {
+        let repos: RepoList = serde_json::from_str(&content).unwrap_or_default();
+        Ok(repos)
+    } else {
+        Ok(RepoList::default())
+    }
+}
+
+/// Save repos list to global directory
+fn save_repos(repos: &RepoList) -> Result<()> {
+    let global_path = get_global_repos_path();
+    let content = serde_json::to_string_pretty(repos)?;
+    fs::write(global_path, content)?;
+    Ok(())
+}
+
+/// Add a repo with name and path to the list (deduplicates by name)
+pub fn add_repo(name: &str, path: &str) -> Result<()> {
+    let mut repos = load_repos()?;
+    let name_str = name.to_string();
+    let path_str = path.to_string();
+
+    // Check if already exists, update path if so
+    if let Some(existing) = repos.repos.iter_mut().find(|r| r.name == name_str) {
+        existing.path = path_str;
+    } else {
+        repos.repos.push(RepoEntry {
+            name: name_str,
+            path: path_str,
+        });
+    }
+    save_repos(&repos)?;
+    Ok(())
+}
+
+/// Show all recorded repository names
+pub fn show_repos() -> Result<()> {
+    let repos = load_repos()?;
+    if repos.repos.is_empty() {
+        println!("{}", "No repositories recorded.".yellow());
+    } else {
+        println!("{}", "Recorded Repositories:".cyan().bold());
+        println!();
+        for entry in &repos.repos {
+            println!("  {} -> {}", entry.name.cyan(), entry.path.dimmed());
+        }
+    }
+    Ok(())
+}
+
+/// Find repo path by name in global repos.json
+pub fn find_repo_path(name: &str) -> Result<Option<String>> {
+    let repos = load_repos()?;
+    if let Some(entry) = repos.repos.iter().find(|r| r.name == name) {
+        Ok(Some(entry.path.clone()))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Load local repo name from .arm/repo.json
+pub fn load_local_repo_name() -> Result<Option<String>> {
+    if let Ok(content) = fs::read_to_string(LOCAL_REPO_FILE) {
+        let repo_name: serde_json::Value = serde_json::from_str(&content)?;
+        if let Some(name) = repo_name.get("repo_name").and_then(|v| v.as_str()) {
+            return Ok(Some(name.to_string()));
+        }
+    }
+    Ok(None)
+}
+
+/// Save local repo name to .arm/repo.json
+pub fn save_local_repo_name(name: &str) -> Result<()> {
+    let local_path = std::path::Path::new(LOCAL_REPO_FILE);
+    if let Some(parent) = local_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let content = serde_json::json!({ "repo_name": name });
+    fs::write(LOCAL_REPO_FILE, serde_json::to_string_pretty(&content)?)?;
+    Ok(())
+}
+
 /// 全局映射缓存：仓库路径 -> (mapping, 是否有效)
 static MAPPING_CACHE: Lazy<Mutex<Option<(String, PathMapping)>>> =
     Lazy::new(|| Mutex::new(None));
@@ -212,6 +323,20 @@ None
     fs::write(MAPPING_PATH, serde_json::to_string_pretty(&mapping)?)?;
     repo.commit("[INIT] Create mapping file")?;
     println!("{} Created mapping file", "✓".green());
+
+    // Record this repository
+    let repo_name = repo
+        .workdir()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+    let repo_path = repo
+        .workdir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| ".".to_string());
+    add_repo(repo_name, &repo_path)?;
+    println!("{} Recorded repository: {} -> {}", "✓".green(), repo_name.cyan(), repo_path.dimmed());
+
     println!("\n{}", "Initialization complete!".green().bold());
     println!("  Use 'arm registry new' to create the first API version.");
     Ok(())
@@ -840,6 +965,14 @@ pub fn mount_repo(_current_repo: &GitRepo, path: &str) -> Result<()> {
             "  Use 'arm -r {} <command>' to work with this repository",
             path.cyan()
         );
+
+        // Record this repository
+        let repo_name = std::path::Path::new(path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+        add_repo(repo_name, path)?;
+        println!("  {} Recorded repository: {} -> {}", "✓".green(), repo_name.cyan(), path.dimmed());
     } else {
         println!(
             "{} Not a valid ARM repository. Run 'arm -r {} init' to initialize.",

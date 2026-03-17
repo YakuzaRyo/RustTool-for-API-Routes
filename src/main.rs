@@ -18,12 +18,30 @@ fn main() -> Result<()> {
     #[cfg(windows)]
     colored::control::set_virtual_terminal(true).ok();
 
-    // Determine repository path
-    let repo_path = if std::env::args().any(|arg| arg == "-r" || arg == "--repo") {
-        args.repo.clone()
-    } else {
-        ".".to_string()
-    };
+    // Handle ShowRepos command separately (doesn't require Git repo)
+    if let Commands::ShowRepos = args.command {
+        commands::registry::show_repos()?;
+        return Ok(());
+    }
+
+    // Handle Config command separately (doesn't require Git repo)
+    if let Commands::Config { .. } = args.command {
+        handle_config_command(
+            Some(args.repo.clone()),
+            None,
+            None,
+            None,
+            false,
+            false,
+        )?;
+        return Ok(());
+    }
+
+    // Determine repository path with priority:
+    // 1. -r parameter (highest priority)
+    // 2. local config (.arm/repo.json -> find in global repos.json)
+    // 3. current directory (lowest priority)
+    let repo_path = determine_repo_path(&args)?;
 
     // Open or initialize Git repository
     let repo = if git::GitRepo::is_valid(&repo_path) {
@@ -39,6 +57,9 @@ fn main() -> Result<()> {
 
     // Execute command
     match args.command {
+        Commands::Config { .. } => {
+            // Already handled above
+        }
         Commands::Init => {
             commands::registry::init(&repo)?;
         }
@@ -73,24 +94,6 @@ fn main() -> Result<()> {
             commands::update::execute(&repo, &args.path, &args.update)?;
         }
 
-        Commands::Config {
-            repo,
-            name,
-            email,
-            lang,
-            show,
-            reset,
-        } => {
-            handle_config_command(
-                repo.clone(),
-                name.clone(),
-                email.clone(),
-                lang.clone(),
-                show,
-                reset,
-            )?;
-        }
-
         Commands::Mount { path } => {
             let mount_repo = GitRepo::open(&path).context("Failed to open Git repository")?;
             commands::registry::mount_repo(&mount_repo, &path)?;
@@ -100,6 +103,10 @@ fn main() -> Result<()> {
             let check_path = path.unwrap_or_else(|| ".".to_string());
             let check_repo = GitRepo::open(&check_path).context("Failed to open Git repository")?;
             commands::registry::check_repo(&check_repo, &check_path)?;
+        }
+
+        Commands::ShowRepos => {
+            commands::registry::show_repos()?;
         }
     }
 
@@ -157,8 +164,29 @@ fn handle_config_command(
     let mut config = Config::load()?;
     let mut updated = false;
 
-    if let Some(repo_path) = repo {
-        config.set_repo_path(repo_path);
+    if let Some(repo_or_name) = repo {
+        // Check if this is a known repo name in global repos.json
+        let final_path = if let Ok(Some(path)) = commands::registry::find_repo_path(&repo_or_name) {
+            // It's a known repo name, use the stored path
+            // Save the repo name to local config
+            commands::registry::save_local_repo_name(&repo_or_name)?;
+            println!("  {} Saved repo name '{}' to .arm/repo.json", "→".dimmed(), repo_or_name.cyan());
+            path
+        } else {
+            // Not found in global repos - treat as a direct path
+            // Record it in global repos.json
+            let path = std::path::Path::new(&repo_or_name);
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(&repo_or_name);
+            commands::registry::add_repo(name, &repo_or_name)?;
+            commands::registry::save_local_repo_name(name)?;
+            println!("  {} Recorded repository: {} -> {}", "→".dimmed(), name.cyan(), repo_or_name.dimmed());
+            repo_or_name
+        };
+
+        config.set_repo_path(final_path);
         updated = true;
     }
 
@@ -187,7 +215,8 @@ fn handle_config_command(
         println!("  arm config [OPTIONS]");
         println!();
         println!("Options:");
-        println!("  -r, --repo <PATH>    Set the repository path");
+        println!("  -r, --repo <PATH>    Set the repository path (by name or path)");
+        println!("                      If a name is provided, saves to .arm/repo.json");
         println!("  -n, --name <NAME>    Set user name for Git commits");
         println!("  -e, --email <EMAIL>  Set user email for Git commits");
         println!("  -l, --lang <LANG>    Set language (zh/en)");
@@ -196,4 +225,31 @@ fn handle_config_command(
     }
 
     Ok(())
+}
+
+/// Determine repository path with priority:
+/// 1. -r parameter (highest priority)
+/// 2. local config (.arm/repo.json -> find in global repos.json)
+/// 3. current directory (lowest priority)
+fn determine_repo_path(args: &Cli) -> Result<String> {
+    // Check if -r or --repo was provided (args.repo is "." by default)
+    if std::env::args().any(|arg| arg == "-r" || arg == "--repo") {
+        let repo = args.repo.clone();
+        if repo != "." {
+            return Ok(repo);
+        }
+    }
+
+    // Try to load from local config (.arm/repo.json)
+    if let Ok(Some(repo_name)) = commands::registry::load_local_repo_name() {
+        // Try to find the path in global repos.json
+        if let Ok(Some(path)) = commands::registry::find_repo_path(&repo_name) {
+            return Ok(path);
+        }
+        // If not found in global repos, treat it as a direct path
+        return Ok(repo_name);
+    }
+
+    // Default to current directory
+    Ok(".".to_string())
 }
