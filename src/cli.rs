@@ -39,6 +39,9 @@ pub enum Commands {
     /// Show endpoint/error details by path
     Show(ShowArgs),
 
+    /// Show version info (current version and all endpoints)
+    ShowVersion,
+
     /// Update endpoint or error information
     Update(UpdateArgs),
 

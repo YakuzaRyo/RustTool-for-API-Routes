@@ -92,6 +92,78 @@ pub fn show_repos() -> Result<()> {
     Ok(())
 }
 
+/// Show current version info and all endpoints
+pub fn show_version(repo: &GitRepo) -> Result<()> {
+    let latest = get_latest_version(repo)?
+        .context("No API version found. Create one with 'arm registry new'")?;
+
+    // Load VERSION.md to get version description
+    repo.checkout("master")?;
+    let version_content = fs::read_to_string("VERSION.md").unwrap_or_default();
+
+    println!("{}", "=".repeat(50));
+    println!();
+    println!("{} Current Version: {}", "→".yellow(), latest.cyan().bold());
+    println!();
+
+    // Parse description from VERSION.md
+    let description = version_content
+        .lines()
+        .skip_while(|l| !l.contains("## Current Version"))
+        .skip(1)
+        .next()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .unwrap_or("No description");
+
+    println!("Description: {}", description);
+    println!();
+
+    // Load mapping to show all endpoints
+    let mapping = load_mapping(repo)?;
+
+    // Filter entries belonging to the current version
+    let version_prefix = format!("{}/", latest);
+    let endpoints: Vec<_> = mapping
+        .entries
+        .iter()
+        .filter(|(path, _)| path.starts_with(&version_prefix))
+        .collect();
+
+    if endpoints.is_empty() {
+        println!("{}", "No endpoints found in this version.".yellow());
+    } else {
+        println!("{} Endpoints:", "→".yellow());
+        println!();
+
+        for (path, entry) in &endpoints {
+            let entry_type = entry.entry_type.as_str();
+            match entry_type {
+                "endpoint" => {
+                    // v1/category/resource -> show as path
+                    let display = path.replace(&format!("{}/", latest), "");
+                    println!("  {}", display.yellow());
+                }
+                "method" => {
+                    // v1/category/resource/GET -> show as path/method
+                    let parts: Vec<&str> = path.split('/').collect();
+                    if parts.len() >= 4 {
+                        let method = parts[3].green();
+                        let display = parts[1..parts.len()-1].join("/");
+                        println!("  {}/{}", display.yellow(), method);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Return to original branch
+    repo.checkout(&latest)?;
+
+    Ok(())
+}
+
 /// Find repo path by name in global repos.json
 pub fn find_repo_path(name: &str) -> Result<Option<String>> {
     let repos = load_repos()?;

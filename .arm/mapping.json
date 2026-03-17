@@ -1,4 +1,38 @@
 {
-  "entries": {},
-  "branches": {}
+  "entries": {
+    "v1/auth": {
+      "path": "v1/auth",
+      "branch": "v1-737pc7np",
+      "entry_type": "category",
+      "parent": "v1",
+      "created": "2026-03-17 14:10:18"
+    },
+    "v1": {
+      "path": "v1",
+      "branch": "v1",
+      "entry_type": "version",
+      "parent": "api",
+      "created": "2026-03-17 14:04:51"
+    },
+    "v1/auth/users": {
+      "path": "v1/auth/users",
+      "branch": "v1-81w4l886",
+      "entry_type": "endpoint",
+      "parent": "v1-737pc7np",
+      "created": "2026-03-17 14:11:12"
+    },
+    "v1/auth/users/GET": {
+      "path": "v1/auth/users/GET",
+      "branch": "v1-2rjk6pcl",
+      "entry_type": "method",
+      "parent": "v1-81w4l886",
+      "created": "2026-03-17 14:12:07"
+    }
+  },
+  "branches": {
+    "v1-81w4l886": "v1/auth/users",
+    "v1-737pc7np": "v1/auth",
+    "v1": "v1",
+    "v1-2rjk6pcl": "v1/auth/users/GET"
+  }
 }

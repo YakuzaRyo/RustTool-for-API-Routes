@@ -109,6 +109,10 @@ fn main() -> Result<()> {
             commands::show::execute(&repo, &args.path)?;
         }
 
+        Commands::ShowVersion => {
+            commands::registry::show_version(&repo)?;
+        }
+
         Commands::Update(args) => {
             commands::update::execute(&repo, &args.path, &args.update)?;
         }
@@ -251,8 +255,18 @@ fn handle_config_command(
 /// 2. local config (.arm/repo.json -> find in global repos.json)
 /// 3. current directory (lowest priority)
 fn determine_repo_path(args: &Cli) -> Result<String> {
-    // Check if -r or --repo was provided (args.repo is "." by default)
-    if std::env::args().any(|arg| arg == "-r" || arg == "--repo") {
+    // Priority order:
+    // 1. -r parameter (if explicitly provided with non-default value)
+    // 2. local config (.arm/repo.json -> find in global repos.json)
+    // 3. current directory
+
+    // Check if -r was explicitly provided (not just default value)
+    let explicit_repo = std::env::args()
+        .collect::<Vec<_>>()
+        .windows(2)
+        .any(|w| w[0] == "-r" || w[0] == "--repo");
+
+    if explicit_repo {
         let repo = args.repo.clone();
         if repo != "." {
             // First check if it's a known repo name in global repos.json
